@@ -1,0 +1,169 @@
+let hasRun = false; //Boolean flag
+
+
+chrome.action.onClicked.addListener((tab) => {
+
+  if (!hasRun) {
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: splitScreen
+    });
+    hasRun = true;
+  }
+  else {
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: refreshPage
+    })
+    hasRun = false;
+  }
+
+});
+
+
+
+function refreshPage() {
+  location.reload(); // Reloads the current page
+}
+
+function splitScreen() {
+  const container = Object.assign(document.createElement('div'), {
+    style: 'display: flex; height: 100vh; width: 100%; position: relative;'
+  });
+
+  const leftColumn = Object.assign(document.createElement('div'), {
+    style: 'flex: 1; overflow: auto; padding-right: 10px; position: relative;'
+  });
+
+  const rightColumn = Object.assign(document.createElement('div'), {
+    style: 'flex: 1; overflow: auto; position: relative;'
+  });
+
+  // Append content to left column (your original content)
+  const content = document.getElementById('d_content');
+  if (content) leftColumn.appendChild(content);
+
+  // Grade Calculator HTML (simplified)
+  const gradeCalculatorHTML = `
+    <div style="background-color: white; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); padding: 20px;">
+      <h3 style="text-align: center; font-size: 24px; font-weight: 600;">Grade Calculator</h3>
+      
+      <!-- Radio Buttons for mode selection -->
+      <div style="text-align: center; margin-bottom: 20px;">
+        <label>
+          <input type="radio" name="mode" value="percentage" checked> Percentage-Based Calculation
+        </label>
+        <label style="margin-left: 20px;">
+          <input type="radio" name="mode" value="points"> Points-Based Calculation
+        </label>
+      </div>
+      
+      <table style="width: 100%; border-spacing: 0 10px;">
+        <thead>
+          <tr style="font-weight: bold;">
+            <th style="text-align: left;">Assignment/Exam</th>
+            <th style="text-align: left;">Grade</th>
+            <th style="text-align: left;">Weight</th>
+          </tr>
+        </thead>
+        <tbody id="gradeTableBody">
+          <tr>
+            <td><input type="text" name="d1" class="inputField" placeholder="Enter Assignment/Exam Name"></td>
+            <td><input type="number" name="s1" class="inputField" placeholder="Grade" value=""></td>
+            <td><input type="number" name="w1" class="inputField" placeholder="Weight" value=""></td>
+          </tr>
+          <tr>
+            <td><input type="text" name="d1" class="inputField" placeholder="Enter Assignment/Exam Name"></td>
+            <td><input type="number" name="s1" class="inputField" placeholder="Grade" value=""></td>
+            <td><input type="number" name="w1" class="inputField" placeholder="Weight" value=""></td>
+          </tr>
+          <tr>
+            <td><input type="text" name="d1" class="inputField" placeholder="Enter Assignment/Exam Name"></td>
+            <td><input type="number" name="s1" class="inputField" placeholder="Grade" value=""></td>
+            <td><input type="number" name="w1" class="inputField" placeholder="Weight" value=""></td>
+          </tr>
+          <!-- More rows will be appended here dynamically -->
+        </tbody>
+      </table>
+      <div style="text-align: center; padding-top: 10px;">
+        <button id="addRowButton" style="background-color: #0078D4; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">+ Add More Rows</button>
+      </div>
+      <div style="text-align: center; padding-top: 20px;">
+        <button id="calculateButton" style="background-color: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">Calculate</button>
+      </div>
+      <div id="finalGradeDisplay" style="text-align: center; font-size: 20px; font-weight: bold; margin-top: 20px;"></div>
+    </div>
+  `;
+
+  // Insert the grade calculator HTML into the right column
+  rightColumn.innerHTML = gradeCalculatorHTML;
+
+  container.append(leftColumn, rightColumn);
+  document.body.appendChild(container);
+
+  // Attach the addRow function to window to make it accessible
+  window.addRow = function() {
+    const tableBody = document.getElementById('gradeTableBody');
+    const rowCount = tableBody.rows.length + 1;
+
+    const newRow = document.createElement('tr');
+    newRow.innerHTML = `
+      <td><input type="text" name="d${rowCount}" class="inputField" placeholder="Enter Assignment/Exam Name"></td>
+      <td><input type="number" name="s${rowCount}" class="inputField" placeholder="Grade"=""></td>
+      <td><input type="number" name="w${rowCount}" class="inputField" placeholder="Weight=""></td>
+    `;
+
+    tableBody.appendChild(newRow);
+  };
+
+  window.getValues = function(){
+    const mode = document.querySelector('input[name="mode"]:checked').value; // Get selected mode
+    console.log(mode);
+    const tableBody = document.getElementById('gradeTableBody');
+    const rows = tableBody.getElementsByTagName('tr');
+    const data = [];
+    let totalGrade = 0;
+    let totalWeight = 0;
+
+    for (let row of rows) {
+      const cells = row.getElementsByTagName('td');
+      const assignment = cells[0].querySelector('input').value;
+      const grade = cells[1].querySelector('input').value;
+      const weight = cells[2].querySelector('input').value;
+
+      data.push({
+        assignment,
+        grade: parseFloat(grade) || 0, // If empty, assume 0
+        weight: parseFloat(weight) || 0  // If empty, assume 0
+      });
+      
+      if (mode === 'percentage') {
+        totalGrade += parseFloat(grade) * (parseFloat(weight) / 100.0);
+        totalWeight += parseFloat(weight);
+      } else {
+        totalGrade += parseFloat(grade);
+        totalWeight += parseFloat(weight);
+      }
+    }
+    let finalGrade = 0;
+    console.log(totalWeight);
+    if (mode === 'percentage') {
+      if (totalWeight !== 100) {
+        console.error("Total weight must be 100 for percentage-based grading.");
+        return;
+      }
+      finalGrade = totalGrade;
+    } else if (totalWeight > 0) {
+      finalGrade = (totalGrade / totalWeight) * 100;
+    }
+
+    console.log(data); // Store or process this data as needed
+    console.log(finalGrade);
+  };
+  
+
+  document.getElementById('addRowButton').addEventListener('click', window.addRow);
+  document.getElementById('calculateButton').addEventListener('click', window.getValues);
+  document.getElementById('finalGradeDisplay').innerText = finalGradeText;
+
+}
